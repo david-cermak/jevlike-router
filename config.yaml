@@ -1,0 +1,14 @@
+model_list:
+  - model_name: smart-router
+    litellm_params:
+      # model: deepseek/deepseek-v4-flash
+      # api_key: os.environ/DEEPSEEK_API_KEY
+      model: ollama/glm-4.7-flash
+      api_base: http://127.0.0.1:11434
+
+router_settings:
+  plugins:
+    - router.debug_router
+
+general_settings:
+  master_key: os.environ/LITELLM_MASTER_KEY
