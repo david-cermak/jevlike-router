@@ -12,5 +12,8 @@ router_settings:
   plugins:
     - router.debug_router
 
+litellm_settings:
+  callbacks: router.proxy_hooks
+
 general_settings:
   master_key: os.environ/LITELLM_MASTER_KEY
