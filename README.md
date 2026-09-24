@@ -4,7 +4,14 @@ LiteLLM-based smart router for coding harnesses.
 
 ## Status
 
-Temporary pass-through: `DebugRouter` prints each request’s messages and always routes to local Ollama (`ollama/glm-4.7-flash`).
+`DebugRouter` logs each request’s messages and routes:
+
+| Request                         | Backend                         |
+|---------------------------------|---------------------------------|
+| Title generation (opencode)     | Ollama (`ollama/glm-4.7-flash`) |
+| Everything else                 | DeepSeek (`deepseek/deepseek-v4-flash`) |
+
+Detection: messages containing `You are a title generator` or `Generate a title for this conversation`.
 
 Planned later:
 
@@ -30,12 +37,14 @@ pip install 'litellm[proxy]'
 |-----------------------|-------------------------------------------|
 | `LITELLM_MASTER_KEY`  | Proxy master key (`config.yaml`)          |
 | `LITELLM_API_KEY`     | Same value; used by clients / test script |
+| `DEEPSEEK_API_KEY`    | DeepSeek API key for non-title traffic    |
 
 Example:
 
 ```bash
 export LITELLM_MASTER_KEY=sk-test
 export LITELLM_API_KEY=sk-test
+export DEEPSEEK_API_KEY=sk-...
 ```
 
 Ollama must be running at `http://127.0.0.1:11434` with `glm-4.7-flash` available.
@@ -55,4 +64,4 @@ Smoke test (with `LITELLM_API_KEY` set):
 ./test_local_proxy.sh
 ```
 
-On each request the proxy terminal should print `=== REQUEST TO ROUTER ===` and `=== ROUTING TO: ollama/glm-4.7-flash ===`.
+On each request the proxy terminal / `logs/router_debug.log` should print `ROUTE REASON` and `=== ROUTING TO: ... ===` (`deepseek/...` for normal chat, `ollama/...` for title generation).

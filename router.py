@@ -5,6 +5,11 @@ from pathlib import Path
 
 LOG_PATH = Path(__file__).resolve().parent / "logs" / "router_debug.log"
 
+TITLE_MARKERS = (
+    "You are a title generator",
+    "Generate a title for this conversation",
+)
+
 
 def _format(value):
     """Pretty-print any message field; fall back to repr for odd types."""
@@ -26,19 +31,49 @@ def _message_as_dict(message):
     return {"_raw": message}
 
 
+def _message_text(content):
+    if content is None:
+        return ""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for part in content:
+            if isinstance(part, str):
+                parts.append(part)
+            elif isinstance(part, dict):
+                parts.append(part.get("text") or "")
+        return "\n".join(parts)
+    return str(content)
+
+
 class DebugRouter:
     """
-    Temporary router.
+    Routes by request type:
 
-    Eventually this will classify the request and select:
+      title generation -> Ollama
+      everything else  -> DeepSeek
+
+    Eventually this will classify difficulty and select:
       easy   -> Ollama
       medium -> DeepSeek
       hard   -> another model
-
-    For now it always selects Ollama and logs the full request.
     """
 
     OLLAMA_MODEL = "ollama/glm-4.7-flash"
+    DEEPSEEK_MODEL = "deepseek/deepseek-v4-flash"
+
+    def _is_title_generation(self, messages):
+        for message in messages or []:
+            text = _message_text(_message_as_dict(message).get("content"))
+            if any(marker in text for marker in TITLE_MARKERS):
+                return True
+        return False
+
+    def _select_model(self, messages):
+        if self._is_title_generation(messages):
+            return self.OLLAMA_MODEL, "title_generation"
+        return self.DEEPSEEK_MODEL, "default"
 
     def _log(self, line, fh):
         print(line)
@@ -46,6 +81,7 @@ class DebugRouter:
 
     async def run(self, context):
         messages = context.structured_messages or context.raw_messages
+        selected, reason = self._select_model(messages)
         LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
 
         with LOG_PATH.open("a", encoding="utf-8") as fh:
@@ -77,12 +113,14 @@ class DebugRouter:
                 f"\nCANDIDATE MODELS (before): {_format(context.candidate_models)}",
                 fh,
             )
-            self._log(f"\n=== ROUTING TO: {self.OLLAMA_MODEL} ===", fh)
+            self._log(f"\nROUTE REASON: {reason}", fh)
+            self._log(f"=== ROUTING TO: {selected} ===", fh)
             self._log("=" * 80 + "\n", fh)
             fh.flush()
 
-        context.candidate_models = [self.OLLAMA_MODEL]
-        context.signals["selected_model"] = self.OLLAMA_MODEL
+        context.candidate_models = [selected]
+        context.signals["selected_model"] = selected
+        context.signals["route_reason"] = reason
         return context
 
 
